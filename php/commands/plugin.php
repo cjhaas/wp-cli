@@ -574,14 +574,32 @@ class Plugin_Command extends \WP_CLI\CommandWithUpgrade {
 
 		$path = path_join( WP_PLUGIN_DIR, $plugin_dir );
 
-		if ( \WP_CLI\Utils\is_windows() ) {
-			$command = 'rd /s /q ';
-			$path = str_replace( "/", "\\", $path );
-		} else {
-			$command = 'rm -rf ';
+		return self::_rmdir( $path );
+	}
+
+
+	private static function _rmdir( $dir ) {
+		$files = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator( $dir, FilesystemIterator::UNIX_PATHS | FilesystemIterator::SKIP_DOTS ),
+			RecursiveIteratorIterator::CHILD_FIRST
+		);
+
+		//Set to true if any delete problems happen
+		$delete_success = true;
+		foreach ( $files as $fileinfo ) {
+			$todo = $fileinfo->isDir() ? 'rmdir' : 'unlink';
+			if( ! $todo( $fileinfo->getRealPath() ) )
+			{
+				$delete_success = false;
+			}
 		}
 
-		return ! WP_CLI::launch( $command . $path );
+		if( ! rmdir( $dir ) )
+		{
+			$delete_success = false;
+		}
+
+		return $delete_success;
 	}
 }
 
